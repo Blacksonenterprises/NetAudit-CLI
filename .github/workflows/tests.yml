@@ -32,6 +32,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Check Python compilation
+        run: |
+          python -m compileall -q main.py modules database reports tests
+
       - name: Run automated tests
         run: |
           python -m unittest discover -s tests -p "test_*.py" -v
