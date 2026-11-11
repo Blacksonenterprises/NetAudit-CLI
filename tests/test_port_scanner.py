@@ -40,7 +40,7 @@ class TestPortScanner(unittest.TestCase):
             "modules.port_scanner.subprocess.run",
             return_value=completed_process
         ):
-            results = scan_ports("192.168.1.10", "22,80")
+            results = scan_ports("192.168.1.10", "22-80")
 
         self.assertEqual(len(results), 2)
 
