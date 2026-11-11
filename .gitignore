@@ -218,3 +218,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# NetAudit generated files
+database/*.db
+database/*.sqlite
+database/*.sqlite3
+
+# Generated security reports
+reports/json/
+reports/html/
