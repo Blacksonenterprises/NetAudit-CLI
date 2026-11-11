@@ -2,94 +2,71 @@
 
 **Mobile-Powered Local Network Vulnerability & Security Scanner**
 
-NetAudit CLI is a Python-based network reconnaissance and security assessment tool designed to identify devices, analyze exposed network services, evaluate common security weaknesses, and generate structured security reports.
-
-Built with Python, Nmap, Scapy, Bash, and SQLite, NetAudit provides a lightweight command-line solution for local network auditing. It is designed to operate on Android devices through Termux and on Linux systems.
-
----
-
-## Project Overview
-
-Understanding what is connected to a network and identifying potentially exposed services are essential aspects of network security.
-
-NetAudit CLI simplifies this process by combining network discovery, port analysis, service identification, security checks, and reporting capabilities into one command-line application.
-
-The tool provides users with a structured approach to examining authorized private networks, reviewing scan history, and documenting security observations.
+NetAudit CLI is a Python-based network reconnaissance and security auditing tool designed for Termux and Linux. It helps users discover devices on authorized private networks, inspect TCP ports, identify exposed services, assess common security concerns, and generate structured reports.
 
 ## Key Features
 
 ### 1. Network Discovery
-- Identifies active devices on a local IPv4 network.
-- Performs subnet discovery and network mapping.
-- Extracts available IP addresses, MAC addresses, and hostnames.
-- Identifies reachable devices using Nmap.
+- Discover reachable devices within an IPv4 subnet.
+- Retrieve available IP addresses, hostnames, and MAC addresses.
+- Use Nmap for network discovery.
 
-### 2. Port Scanning
-- Performs TCP port scanning.
-- Identifies open, closed, and filtered ports.
-- Supports configurable port ranges.
-- Highlights potentially exposed network services.
+### 2. TCP Port Scanning
+- Scan configurable TCP port ranges.
+- Identify port states and available service information.
+- Review potentially exposed network services.
 
-### 3. Service and Version Detection
-- Identifies services running on discovered open ports.
-- Retrieves available service and version information.
-- Helps identify outdated or potentially vulnerable services.
+### 3. Network Analysis
+- Summarize discovered network devices.
+- Identify devices with missing hostnames.
+- Detect duplicate MAC addresses.
+- Flag invalid or out-of-subnet IP addresses.
 
 ### 4. Security Assessment
-- Performs basic security baseline checks.
-- Identifies potentially risky exposed services.
-- Flags common network misconfigurations and security concerns.
-- Provides findings to support further investigation.
+- Evaluate scan results against basic security checks.
+- Categorize identified findings by severity.
+- Display recommended remediation actions.
 
-### 5. Scan History Management
-- Uses SQLite for local scan-data storage.
-- Records scan dates, target subnets, and discovered devices.
-- Maintains historical scan information.
-- Supports retrieval and review of previous scan results.
+### 5. Scan History
+- Store network discovery results using SQLite.
+- Retrieve previous discovery scans.
+- Review saved device information.
 
-### 6. Security Report Generation
-- Generates structured JSON reports.
-- Produces HTML security reports.
-- Organizes discovery results, port information, and security findings.
-- Provides readable records for documentation and review.
+### 6. Report Generation
+- Generate JSON security reports.
+- Generate HTML security reports.
+- Include scan results and security assessment findings.
 
 ### 7. Command-Line Interface
-- Provides a structured CLI using Python argparse and Rich.
-- Supports modular commands for different assessment operations.
-- Displays scan results in organized terminal tables.
-- Designed for lightweight operation on mobile and desktop environments.
-
----
+- Built with Python `argparse`.
+- Uses Rich for organized terminal output.
+- Provides separate commands for discovery, scanning, reporting, and history.
 
 ## Technology Stack
 
 | Technology | Purpose |
 |---|---|
-| Python | Core application and scanning logic |
-| Nmap | Network discovery, port scanning, service detection |
-| Scapy | Packet manipulation and network analysis |
-| Bash | Supporting scripts and automation |
-| SQLite | Local database and scan history |
-| Rich | Terminal interface and formatted output |
+| Python | Core application logic |
+| Nmap | Network discovery and scanning |
+| SQLite | Local scan history |
+| Rich | Terminal interface |
 | argparse | Command-line argument handling |
-| XML | Nmap result processing |
-| JSON | Structured security reports |
+| JSON | Structured report output |
 | HTML | Readable security reports |
+| GitHub Actions | Automated testing |
 
-## Project Architecture
+## Project Structure
 
 ```text
 NetAudit-CLI/
 │
 ├── main.py
-├── config.py
 ├── requirements.txt
 │
 ├── modules/
 │   ├── __init__.py
 │   ├── discovery.py
 │   ├── port_scanner.py
-│   ├── service_detection.py
 │   ├── vulnerability_check.py
 │   └── network_analysis.py
 │
@@ -98,14 +75,14 @@ NetAudit-CLI/
 │   └── history.py
 │
 ├── reports/
-│   ├── json/
-│   └── html/
-│
-├── scripts/
-│   ├── setup.sh
-│   └── run_audit.sh
+│   └── report_generator.py
 │
 ├── tests/
+│   └── test_network_analysis.py
+│
+├── .github/
+│   └── workflows/
+│       └── tests.yml
 │
 ├── .gitignore
 ├── LICENSE
@@ -119,8 +96,7 @@ NetAudit-CLI/
 - Python 3.9 or later
 - Nmap
 - Git
-- Termux on Android or a Linux environment
-- Appropriate permissions for the selected network assessment operations
+- Termux or a compatible Linux environment
 
 ### 1. Clone the repository
 
@@ -131,14 +107,14 @@ cd NetAudit-CLI
 
 ### 2. Install system dependencies
 
-**Termux:**
+**Termux**
 
 ```bash
 pkg update && pkg upgrade -y
 pkg install python nmap git -y
 ```
 
-**Ubuntu/Debian:**
+**Ubuntu/Debian**
 
 ```bash
 sudo apt update
@@ -151,21 +127,13 @@ sudo apt install python3 python3-pip nmap git -y
 pip install -r requirements.txt
 ```
 
-### 4. Launch NetAudit
+## Usage
 
-```bash
-python main.py
-```
-
-Display the application version:
+### Display application version
 
 ```bash
 python main.py --version
 ```
-
-## Usage Examples
-
-The following examples illustrate the intended command interface.
 
 ### Discover network devices
 
@@ -173,7 +141,7 @@ The following examples illustrate the intended command interface.
 python main.py discover --subnet 192.168.1.0/24
 ```
 
-### Scan a target's ports
+### Scan TCP ports
 
 ```bash
 python main.py scan --target 192.168.1.10 --ports 1-1000
@@ -182,72 +150,55 @@ python main.py scan --target 192.168.1.10 --ports 1-1000
 ### Generate a JSON report
 
 ```bash
-python main.py report --format json
+python main.py report --target 192.168.1.10 --ports 1-1000 --format json
 ```
 
 ### Generate an HTML report
 
 ```bash
-python main.py report --format html
+python main.py report --target 192.168.1.10 --ports 1-1000 --format html
 ```
 
-### Review previous scans
+### View previous discovery scans
 
 ```bash
 python main.py history
 ```
 
-Replace example IP addresses and subnets with targets you are authorized to assess. Command availability depends on the installed application version.
+Replace example IP addresses and subnets with targets you own or are explicitly authorized to assess.
 
----
+## Automated Testing
 
-## Security and Responsible Use
+NetAudit uses Python's `unittest` framework for automated tests.
+
+Run the test suite locally:
+
+```bash
+python -m unittest discover -s tests -p "test_*.py" -v
+```
+
+GitHub Actions is configured to execute the automated tests when changes are pushed to the main branch or a pull request is opened.
+
+## Responsible Use
 
 NetAudit CLI is intended for:
-
-- Authorized local network auditing.
+- Authorized network security auditing.
 - Defensive cybersecurity assessments.
 - Network administration and troubleshooting.
 - Cybersecurity education and practical learning.
-- Identifying potentially exposed services and security weaknesses.
 
-**Important:** Only scan networks and devices you own or have explicit permission to assess. Do not use this tool to access, disrupt, or test third-party networks without authorization.
+Only scan networks and devices you own or have explicit permission to assess.
 
-Network visibility and scan accuracy may vary depending on firewall rules, device isolation, operating-system permissions, and network configuration.
+Scan visibility and accuracy may vary depending on firewall rules, device isolation, operating-system permissions, and network configuration.
 
-## Platform Compatibility
-
-| Platform | Support |
-|---|---|
-| Android | Termux |
-| Linux | Ubuntu, Debian and compatible distributions |
-
-Some network operations may require additional privileges or platform-specific configuration.
-
-## Project Goals
-
-NetAudit CLI was designed around three core objectives:
-
-1. **Accessibility:** Make local network auditing possible from lightweight environments, including Android devices.
-2. **Visibility:** Help users understand which devices and services are present on an authorized network.
-3. **Documentation:** Maintain scan records and produce structured reports that support security review.
-
-## Future Enhancements
-
-Potential areas for further improvement include:
-
-- More comprehensive vulnerability detection.
-- Advanced network traffic analysis.
-- Scheduled and automated security audits.
-- Enhanced reporting and visualization.
-- Improved cross-platform compatibility.
+Security findings are preliminary indicators and should not be treated as proof that a system is vulnerable or secure.
 
 ## Author
 
 **Blacksonenterprises**
 
-GitHub: [Blacksonenterprises](https://github.com/Blacksonenterprises)
+GitHub: https://github.com/Blacksonenterprises
 
 ## License
 
-This project is distributed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is distributed under the MIT License. See the `LICENSE` file for details.
