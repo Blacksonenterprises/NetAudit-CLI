@@ -5,7 +5,7 @@
 NetAudit CLI
 Mobile-Powered Local Network Vulnerability & Security Scanner
 
-Version: 1.2.0
+Version: 1.3.0
 Platform: Termux / Linux
 """
 
@@ -19,6 +19,10 @@ from rich.align import Align
 
 from modules.discovery import discover_devices
 from modules.port_scanner import scan_ports
+from modules.vulnerability_check import (
+    assess_scan_results,
+    summarize_findings
+)
 
 from database.history import (
     save_scan,
@@ -29,7 +33,7 @@ from database.history import (
 
 console = Console()
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 
 def display_banner():
@@ -108,7 +112,7 @@ def create_parser():
 
     scan = subparsers.add_parser(
         "scan",
-        help="Perform TCP port and service scanning"
+        help="Perform TCP port and security assessment"
     )
 
     scan.add_argument(
@@ -230,6 +234,81 @@ def show_port_results(results):
     )
 
 
+def show_security_findings(findings):
+    """Display security assessment findings."""
+
+    if not findings:
+        console.print(
+            "\n[bold green]No flagged security findings were identified.[/bold green]"
+        )
+        console.print(
+            "[dim]This does not guarantee that the target is vulnerability-free.[/dim]"
+        )
+        return
+
+    table = Table(title="NetAudit - Security Assessment")
+
+    table.add_column("Port", style="cyan")
+    table.add_column("Service", style="yellow")
+    table.add_column("Severity", style="bold red")
+    table.add_column("Finding", style="white")
+
+    for finding in findings:
+        severity = finding["severity"]
+
+        severity_style = {
+            "CRITICAL": "bold red",
+            "HIGH": "red",
+            "MEDIUM": "yellow",
+            "LOW": "green",
+            "INFO": "cyan"
+        }.get(severity, "white")
+
+        table.add_row(
+            str(finding["port"]),
+            finding["service"],
+            f"[{severity_style}]{severity}[/{severity_style}]",
+            finding["finding"]
+        )
+
+    console.print(table)
+
+    summary = summarize_findings(findings)
+
+    summary_table = Table(title="Security Findings Summary")
+
+    summary_table.add_column("Severity", style="bold")
+    summary_table.add_column("Count", justify="right")
+
+    for severity in ("critical", "high", "medium", "low", "info"):
+        summary_table.add_row(
+            severity.upper(),
+            str(summary[severity])
+        )
+
+    summary_table.add_row(
+        "[bold]TOTAL[/bold]",
+        f"[bold]{summary['total_findings']}[/bold]"
+    )
+
+    console.print(summary_table)
+
+    recommendation_table = Table(
+        title="Recommended Remediation Actions"
+    )
+
+    recommendation_table.add_column("Port", style="cyan")
+    recommendation_table.add_column("Recommendation", style="white")
+
+    for finding in findings:
+        recommendation_table.add_row(
+            str(finding["port"]),
+            finding["recommendation"]
+        )
+
+    console.print(recommendation_table)
+
+
 def run_discovery(subnet):
     """Discover devices and save discovery results."""
 
@@ -251,7 +330,7 @@ def run_discovery(subnet):
 
 
 def run_port_scan(target, ports):
-    """Run TCP port scanning against an authorized target."""
+    """Run port scanning and security assessment."""
 
     try:
         console.print(
@@ -261,6 +340,11 @@ def run_port_scan(target, ports):
         results = scan_ports(target, ports)
 
         show_port_results(results)
+
+        findings = assess_scan_results(results)
+
+        console.print()
+        show_security_findings(findings)
 
     except (ValueError, RuntimeError) as error:
         console.print(
