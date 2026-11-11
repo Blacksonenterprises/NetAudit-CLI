@@ -5,7 +5,7 @@
 NetAudit CLI
 Mobile-Powered Local Network Vulnerability & Security Scanner
 
-Version: 1.3.0
+Version: 1.4.0
 Platform: Termux / Linux
 """
 
@@ -19,6 +19,7 @@ from rich.align import Align
 
 from modules.discovery import discover_devices
 from modules.port_scanner import scan_ports
+
 from modules.vulnerability_check import (
     assess_scan_results,
     summarize_findings
@@ -30,10 +31,11 @@ from database.history import (
     get_scan_devices
 )
 
+from reports.report_generator import generate_report
+
 
 console = Console()
-
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 
 def display_banner():
@@ -49,12 +51,10 @@ def display_banner():
         style="bold green"
     )
 
-    content = Text.assemble(banner, "\n", subtitle)
-
     console.print()
     console.print(
         Panel(
-            Align.center(content),
+            Align.center(Text.assemble(banner, "\n", subtitle)),
             border_style="cyan",
             padding=(1, 2)
         )
@@ -64,18 +64,10 @@ def display_banner():
 def display_status():
     """Display application information."""
 
-    console.print(
-        "[bold green]Application:[/bold green] NetAudit CLI"
-    )
-    console.print(
-        f"[bold green]Version:[/bold green] {VERSION}"
-    )
-    console.print(
-        "[bold green]Platform:[/bold green] Termux / Linux"
-    )
-    console.print(
-        "[bold green]Status:[/bold green] [yellow]Active Development[/yellow]"
-    )
+    console.print("[bold green]Application:[/bold green] NetAudit CLI")
+    console.print(f"[bold green]Version:[/bold green] {VERSION}")
+    console.print("[bold green]Platform:[/bold green] Termux / Linux")
+    console.print("[bold green]Status:[/bold green] [yellow]Active Development[/yellow]")
     console.print()
 
 
@@ -103,7 +95,6 @@ def create_parser():
         "discover",
         help="Discover devices on an authorized private network"
     )
-
     discover.add_argument(
         "--subnet",
         required=True,
@@ -114,13 +105,11 @@ def create_parser():
         "scan",
         help="Perform TCP port and security assessment"
     )
-
     scan.add_argument(
         "--target",
         required=True,
         help="Authorized private IPv4 target"
     )
-
     scan.add_argument(
         "--ports",
         default="1-1000",
@@ -129,14 +118,23 @@ def create_parser():
 
     report = subparsers.add_parser(
         "report",
-        help="Generate security reports"
+        help="Scan a target and generate a security report"
     )
-
+    report.add_argument(
+        "--target",
+        required=True,
+        help="Authorized private IPv4 target"
+    )
+    report.add_argument(
+        "--ports",
+        default="1-1000",
+        help="Port range (default: 1-1000)"
+    )
     report.add_argument(
         "--format",
         choices=["json", "html"],
         default="json",
-        help="Report format"
+        help="Report format (default: json)"
     )
 
     subparsers.add_parser(
@@ -148,16 +146,13 @@ def create_parser():
 
 
 def show_discovered_devices(devices):
-    """Display discovered devices in a table."""
+    """Display discovered devices."""
 
     if not devices:
-        console.print(
-            "[yellow]No reachable devices were discovered.[/yellow]"
-        )
+        console.print("[yellow]No reachable devices were discovered.[/yellow]")
         return
 
     table = Table(title="NetAudit - Discovered Devices")
-
     table.add_column("IP Address", style="cyan")
     table.add_column("Hostname", style="green")
     table.add_column("MAC Address", style="yellow")
@@ -172,49 +167,35 @@ def show_discovered_devices(devices):
         )
 
     console.print(table)
-
-    console.print(
-        f"\n[bold green]Total devices found: {len(devices)}[/bold green]"
-    )
+    console.print(f"\n[bold green]Total devices found: {len(devices)}[/bold green]")
 
 
 def show_port_results(results):
     """Display TCP port scan results."""
 
     if not results:
-        console.print(
-            "[yellow]No port information was returned.[/yellow]"
-        )
+        console.print("[yellow]No port information was returned.[/yellow]")
         return
 
     table = Table(title="NetAudit - TCP Port Scan Results")
-
     table.add_column("Port", style="cyan")
-    table.add_column("Protocol", style="white")
-    table.add_column("State", style="bold green")
+    table.add_column("Protocol")
+    table.add_column("State")
     table.add_column("Service", style="yellow")
     table.add_column("Product / Version", style="magenta")
 
     for item in results:
         product_version = " ".join(
-            part for part in (
+            value for value in (
                 item.get("product"),
                 item.get("version")
-            ) if part
-        )
-
-        state = item.get("state", "unknown")
-
-        state_style = (
-            "bold green" if state == "open"
-            else "yellow" if state == "filtered"
-            else "red"
+            ) if value
         )
 
         table.add_row(
             str(item.get("port", "Unknown")),
             item.get("protocol", "tcp").upper(),
-            f"[{state_style}]{state.upper()}[/{state_style}]",
+            item.get("state", "unknown").upper(),
             item.get("service", "unknown"),
             product_version or "Unknown"
         )
@@ -226,16 +207,12 @@ def show_port_results(results):
         if item.get("state") == "open"
     )
 
-    console.print(
-        f"\n[bold green]Ports identified: {len(results)}[/bold green]"
-    )
-    console.print(
-        f"[bold cyan]Open ports: {open_ports}[/bold cyan]"
-    )
+    console.print(f"\n[bold green]Ports identified: {len(results)}[/bold green]")
+    console.print(f"[bold cyan]Open ports: {open_ports}[/bold cyan]")
 
 
 def show_security_findings(findings):
-    """Display security assessment findings."""
+    """Display security findings and recommendations."""
 
     if not findings:
         console.print(
@@ -247,27 +224,16 @@ def show_security_findings(findings):
         return
 
     table = Table(title="NetAudit - Security Assessment")
-
     table.add_column("Port", style="cyan")
     table.add_column("Service", style="yellow")
     table.add_column("Severity", style="bold red")
-    table.add_column("Finding", style="white")
+    table.add_column("Finding")
 
     for finding in findings:
-        severity = finding["severity"]
-
-        severity_style = {
-            "CRITICAL": "bold red",
-            "HIGH": "red",
-            "MEDIUM": "yellow",
-            "LOW": "green",
-            "INFO": "cyan"
-        }.get(severity, "white")
-
         table.add_row(
             str(finding["port"]),
             finding["service"],
-            f"[{severity_style}]{severity}[/{severity_style}]",
+            finding["severity"],
             finding["finding"]
         )
 
@@ -276,8 +242,7 @@ def show_security_findings(findings):
     summary = summarize_findings(findings)
 
     summary_table = Table(title="Security Findings Summary")
-
-    summary_table.add_column("Severity", style="bold")
+    summary_table.add_column("Severity")
     summary_table.add_column("Count", justify="right")
 
     for severity in ("critical", "high", "medium", "low", "info"):
@@ -286,27 +251,19 @@ def show_security_findings(findings):
             str(summary[severity])
         )
 
-    summary_table.add_row(
-        "[bold]TOTAL[/bold]",
-        f"[bold]{summary['total_findings']}[/bold]"
-    )
-
     console.print(summary_table)
 
-    recommendation_table = Table(
-        title="Recommended Remediation Actions"
-    )
-
-    recommendation_table.add_column("Port", style="cyan")
-    recommendation_table.add_column("Recommendation", style="white")
+    recommendations = Table(title="Recommended Remediation Actions")
+    recommendations.add_column("Port", style="cyan")
+    recommendations.add_column("Recommendation")
 
     for finding in findings:
-        recommendation_table.add_row(
+        recommendations.add_row(
             str(finding["port"]),
             finding["recommendation"]
         )
 
-    console.print(recommendation_table)
+    console.print(recommendations)
 
 
 def run_discovery(subnet):
@@ -314,7 +271,6 @@ def run_discovery(subnet):
 
     try:
         devices = discover_devices(subnet)
-
         scan_id = save_scan(subnet, devices)
 
         console.print(
@@ -324,32 +280,55 @@ def run_discovery(subnet):
         show_discovered_devices(devices)
 
     except (ValueError, RuntimeError) as error:
-        console.print(
-            f"[bold red]Discovery error: {error}[/bold red]"
-        )
+        console.print(f"[bold red]Discovery error: {error}[/bold red]")
 
 
 def run_port_scan(target, ports):
-    """Run port scanning and security assessment."""
+    """Perform port scanning and security assessment."""
 
     try:
-        console.print(
-            f"\n[cyan]Starting TCP scan against {target}...[/cyan]"
-        )
+        console.print(f"\n[cyan]Starting TCP scan against {target}...[/cyan]")
 
         results = scan_ports(target, ports)
-
-        show_port_results(results)
-
         findings = assess_scan_results(results)
 
-        console.print()
+        show_port_results(results)
         show_security_findings(findings)
 
     except (ValueError, RuntimeError) as error:
+        console.print(f"[bold red]Port scan error: {error}[/bold red]")
+
+
+def run_report(target, ports, report_format):
+    """Perform a scan and generate a security report."""
+
+    try:
         console.print(
-            f"[bold red]Port scan error: {error}[/bold red]"
+            f"\n[cyan]Preparing {report_format.upper()} report for {target}...[/cyan]"
         )
+
+        results = scan_ports(target, ports)
+        findings = assess_scan_results(results)
+
+        report_path = generate_report(
+            target=target,
+            ports=ports,
+            scan_results=results,
+            findings=findings,
+            report_format=report_format
+        )
+
+        console.print(
+            "\n[bold green]Report generated successfully![/bold green]"
+        )
+        console.print(f"[bold cyan]File:[/bold cyan] {report_path}")
+        console.print(f"[bold cyan]Format:[/bold cyan] {report_format.upper()}")
+
+        show_port_results(results)
+        show_security_findings(findings)
+
+    except (ValueError, RuntimeError, OSError) as error:
+        console.print(f"[bold red]Report error: {error}[/bold red]")
 
 
 def show_history():
@@ -359,16 +338,13 @@ def show_history():
         scans = get_scan_history()
 
         if not scans:
-            console.print(
-                "[yellow]No previous scans found.[/yellow]"
-            )
+            console.print("[yellow]No previous scans found.[/yellow]")
             return
 
         table = Table(title="NetAudit - Scan History")
-
         table.add_column("Scan ID", style="cyan")
         table.add_column("Subnet", style="green")
-        table.add_column("Date", style="white")
+        table.add_column("Date")
         table.add_column("Devices Found", style="yellow")
 
         for record in scans:
@@ -382,16 +358,14 @@ def show_history():
         console.print(table)
 
         for record in scans:
-            scan_id = record["id"]
-            devices = get_scan_devices(scan_id)
+            devices = get_scan_devices(record["id"])
 
             if not devices:
                 continue
 
             device_table = Table(
-                title=f"Devices in Scan #{scan_id}"
+                title=f"Devices in Scan #{record['id']}"
             )
-
             device_table.add_column("IP Address", style="cyan")
             device_table.add_column("Hostname", style="green")
             device_table.add_column("MAC Address", style="yellow")
@@ -408,9 +382,7 @@ def show_history():
             console.print(device_table)
 
     except Exception as error:
-        console.print(
-            f"[bold red]History error: {error}[/bold red]"
-        )
+        console.print(f"[bold red]History error: {error}[/bold red]")
 
 
 def main():
@@ -429,10 +401,7 @@ def main():
         run_port_scan(args.target, args.ports)
 
     elif args.command == "report":
-        console.print(
-            "[yellow]Report generation module is not connected yet.[/yellow]"
-        )
-        console.print(f"Requested format: {args.format}")
+        run_report(args.target, args.ports, args.format)
 
     elif args.command == "history":
         show_history()
@@ -442,11 +411,8 @@ def main():
 
 
 if __name__ == "__main__":
-
     try:
         main()
 
     except KeyboardInterrupt:
-        console.print(
-            "\n[bold red]Operation cancelled.[/bold red]"
-        )
+        console.print("\n[bold red]Operation cancelled.[/bold red]")
