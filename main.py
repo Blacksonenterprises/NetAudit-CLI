@@ -5,7 +5,7 @@
 NetAudit CLI
 Mobile-Powered Local Network Vulnerability & Security Scanner
 
-Version: 1.4.0
+Version: 1.5.0
 Platform: Termux / Linux
 """
 
@@ -19,6 +19,7 @@ from rich.align import Align
 
 from modules.discovery import discover_devices
 from modules.port_scanner import scan_ports
+from modules.network_analysis import analyze_network_devices
 
 from modules.vulnerability_check import (
     assess_scan_results,
@@ -35,7 +36,7 @@ from reports.report_generator import generate_report
 
 
 console = Console()
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 
 
 def display_banner():
@@ -93,7 +94,7 @@ def create_parser():
 
     discover = subparsers.add_parser(
         "discover",
-        help="Discover devices on an authorized private network"
+        help="Discover and analyze devices on an authorized private network"
     )
     discover.add_argument(
         "--subnet",
@@ -168,6 +169,58 @@ def show_discovered_devices(devices):
 
     console.print(table)
     console.print(f"\n[bold green]Total devices found: {len(devices)}[/bold green]")
+
+
+def show_network_analysis(analysis):
+    """Display network inventory analysis."""
+
+    console.print()
+    console.print(
+        Panel(
+            "[bold cyan]NETWORK INVENTORY ANALYSIS[/bold cyan]",
+            border_style="cyan"
+        )
+    )
+
+    summary = Table(title="Network Summary")
+    summary.add_column("Metric", style="cyan")
+    summary.add_column("Result", style="green")
+
+    summary.add_row("Network", analysis["network"])
+    summary.add_row("Network Address", analysis["network_address"])
+    summary.add_row("Broadcast Address", analysis["broadcast_address"])
+    summary.add_row("Devices Discovered", str(analysis["total_discovered"]))
+    summary.add_row("Valid Devices", str(analysis["valid_devices"]))
+    summary.add_row("Active Devices", str(analysis["active_devices"]))
+
+    console.print(summary)
+
+    console.print(
+        f"\n[yellow]Devices missing hostnames: "
+        f"{len(analysis['missing_hostnames'])}[/yellow]"
+    )
+
+    if analysis["missing_hostnames"]:
+        for ip in analysis["missing_hostnames"]:
+            console.print(f"  - {ip}")
+
+    console.print(
+        f"\n[bold red]Duplicate MAC addresses: "
+        f"{len(analysis['duplicate_mac_addresses'])}[/bold red]"
+    )
+
+    if analysis["duplicate_mac_addresses"]:
+        for mac in analysis["duplicate_mac_addresses"]:
+            console.print(f"  - {mac}")
+
+    console.print(
+        f"\n[yellow]Invalid or out-of-subnet IP addresses: "
+        f"{len(analysis['invalid_or_outside_ips'])}[/yellow]"
+    )
+
+    if analysis["invalid_or_outside_ips"]:
+        for ip in analysis["invalid_or_outside_ips"]:
+            console.print(f"  - {ip}")
 
 
 def show_port_results(results):
@@ -267,7 +320,7 @@ def show_security_findings(findings):
 
 
 def run_discovery(subnet):
-    """Discover devices and save discovery results."""
+    """Discover devices, analyze the network and save results."""
 
     try:
         devices = discover_devices(subnet)
@@ -278,6 +331,9 @@ def run_discovery(subnet):
         )
 
         show_discovered_devices(devices)
+
+        analysis = analyze_network_devices(devices, subnet)
+        show_network_analysis(analysis)
 
     except (ValueError, RuntimeError) as error:
         console.print(f"[bold red]Discovery error: {error}[/bold red]")
