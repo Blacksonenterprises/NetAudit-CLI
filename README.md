@@ -2,7 +2,7 @@
 
 **Mobile-Powered Local Network Vulnerability & Security Scanner**
 
-NetAudit CLI is a Python-based network reconnaissance and security auditing tool designed for Termux and Linux. It helps users discover devices on authorized private networks, inspect TCP ports, identify exposed services, assess common security concerns, and generate structured reports.
+NetAudit CLI is a Python-based network reconnaissance and security auditing tool designed for Termux and Linux. It helps users discover devices on authorized private networks, inspect TCP ports, identify exposed services, assess common security concerns, and generate structured security reports.
 
 ## Key Features
 
@@ -10,11 +10,13 @@ NetAudit CLI is a Python-based network reconnaissance and security auditing tool
 - Discover reachable devices within an IPv4 subnet.
 - Retrieve available IP addresses, hostnames, and MAC addresses.
 - Use Nmap for network discovery.
+- Validate private network ranges before scanning.
 
 ### 2. TCP Port Scanning
-- Scan configurable TCP port ranges.
+- Scan configurable TCP ports and port ranges.
 - Identify port states and available service information.
-- Review potentially exposed network services.
+- Retrieve service and version details where available.
+- Validate scan targets and port ranges.
 
 ### 3. Network Analysis
 - Summarize discovered network devices.
@@ -23,9 +25,12 @@ NetAudit CLI is a Python-based network reconnaissance and security auditing tool
 - Flag invalid or out-of-subnet IP addresses.
 
 ### 4. Security Assessment
-- Evaluate scan results against basic security checks.
-- Categorize identified findings by severity.
+- Evaluate scan results using predefined security rules.
+- Identify potentially risky exposed services.
+- Categorize findings by severity.
 - Display recommended remediation actions.
+
+*Note: This is a rule-based preliminary security assessment, not a comprehensive vulnerability scanner or penetration-testing framework.*
 
 ### 5. Scan History
 - Store network discovery results using SQLite.
@@ -36,6 +41,7 @@ NetAudit CLI is a Python-based network reconnaissance and security auditing tool
 - Generate JSON security reports.
 - Generate HTML security reports.
 - Include scan results and security assessment findings.
+- Escape untrusted content in generated HTML reports.
 
 ### 7. Command-Line Interface
 - Built with Python `argparse`.
@@ -47,13 +53,14 @@ NetAudit CLI is a Python-based network reconnaissance and security auditing tool
 | Technology | Purpose |
 |---|---|
 | Python | Core application logic |
-| Nmap | Network discovery and scanning |
+| Nmap | Network discovery and TCP scanning |
 | SQLite | Local scan history |
 | Rich | Terminal interface |
 | argparse | Command-line argument handling |
 | JSON | Structured report output |
 | HTML | Readable security reports |
-| GitHub Actions | Automated testing |
+| unittest | Automated testing |
+| GitHub Actions | Continuous integration |
 
 ## Project Structure
 
@@ -78,7 +85,13 @@ NetAudit-CLI/
 │   └── report_generator.py
 │
 ├── tests/
-│   └── test_network_analysis.py
+│   ├── test_cli.py
+│   ├── test_database_history.py
+│   ├── test_discovery.py
+│   ├── test_network_analysis.py
+│   ├── test_port_scanner.py
+│   ├── test_report_generator.py
+│   └── test_vulnerability_check.py
 │
 ├── .github/
 │   └── workflows/
@@ -93,10 +106,10 @@ NetAudit-CLI/
 
 ### Requirements
 
-- Python 3.9 or later
-- Nmap
-- Git
-- Termux or a compatible Linux environment
+- Python 3.11 or later recommended (the CI workflow uses Python 3.11).
+- Nmap installed and accessible from the system PATH.
+- Git.
+- Termux or a compatible Linux environment.
 
 ### 1. Clone the repository
 
@@ -124,7 +137,7 @@ sudo apt install python3 python3-pip nmap git -y
 ### 3. Install Python dependencies
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ## Usage
@@ -133,6 +146,12 @@ pip install -r requirements.txt
 
 ```bash
 python main.py --version
+```
+
+### Display available commands
+
+```bash
+python main.py --help
 ```
 
 ### Discover network devices
@@ -169,19 +188,36 @@ Replace example IP addresses and subnets with targets you own or are explicitly 
 
 ## Automated Testing
 
-NetAudit uses Python's `unittest` framework for automated tests.
+NetAudit uses Python's built-in `unittest` framework.
 
-Run the test suite locally:
+Run the complete test suite locally:
 
 ```bash
 python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-GitHub Actions is configured to execute the automated tests when changes are pushed to the main branch or a pull request is opened.
+Run a Python compilation check:
+
+```bash
+python -m compileall -q main.py modules database reports tests
+```
+
+### Continuous Integration
+
+GitHub Actions automatically runs the following checks:
+
+1. Checks out the repository.
+2. Sets up Python 3.11.
+3. Installs project dependencies.
+4. Checks Python compilation.
+5. Executes the automated unit tests.
+
+The workflow runs on pushes and pull requests targeting the `main` branch and can also be triggered manually.
 
 ## Responsible Use
 
 NetAudit CLI is intended for:
+
 - Authorized network security auditing.
 - Defensive cybersecurity assessments.
 - Network administration and troubleshooting.
@@ -191,7 +227,11 @@ Only scan networks and devices you own or have explicit permission to assess.
 
 Scan visibility and accuracy may vary depending on firewall rules, device isolation, operating-system permissions, and network configuration.
 
-Security findings are preliminary indicators and should not be treated as proof that a system is vulnerable or secure.
+Security findings are preliminary indicators. The absence of findings does not guarantee that a system is secure, and a flagged service does not automatically prove that a vulnerability exists.
+
+## Project Status
+
+The project has an automated test suite and a GitHub Actions CI workflow. Live network operation should be validated separately in an authorized Termux or Linux environment.
 
 ## Author
 
